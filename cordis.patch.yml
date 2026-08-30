@@ -1,0 +1,8 @@
+# dsh-vscode-bridge bundle patch
+#
+# 经 `dsh plugin --profile web add <tgz>` 安装时自动挂载：insert 一条
+# host 插件行（lib/index.js），Client 半区由 dsh.plugin.json 的 client.main
+# 经模块表加载。卸载用 `dsh plugin --profile web remove dsh-vscode-bridge`。
+- insert:
+    - id: vscode-bridge
+      name: 'dsh-vscode-bridge'

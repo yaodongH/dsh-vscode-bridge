@@ -1,0 +1,39 @@
+{
+  "name": "dsh-vscode-bridge",
+  "version": "0.1.11",
+  "description": "DSH web plugin: 在 DSH 中心区视图嵌入固定版本 code-server（VS Code Web），支持自定义服务器路径/端口配置、安装进度与热切换。",
+  "type": "module",
+  "main": "lib/index.js",
+  "exports": {
+    ".": "./lib/index.js",
+    "./client": "./lib/client.js",
+    "./invariant": "./lib/invariant.js",
+    "./package.json": "./package.json"
+  },
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "platform": "web"
+    }
+  },
+  "files": [
+    "LICENSE",
+    "README.md",
+    "lib/index.js",
+    "lib/client.js",
+    "lib/client-registry.js",
+    "lib/invariant.js",
+    "cordis.patch.yml",
+    "dsh.plugin.json",
+    "docs/screenshot-md-preview.png"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "license": "MIT",
+  "scripts": {
+    "prepack": "node scripts/sync-client.mjs"
+  }
+}

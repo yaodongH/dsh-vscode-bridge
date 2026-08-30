@@ -1,0 +1,16 @@
+{
+  "id": "dsh-external/dsh-vscode-bridge",
+  "version": "0.1.0",
+  "main": "./lib/index.js",
+  "description": "在 DSH 中心区视图嵌入固定版本 code-server（VS Code Web）；支持 pinned/自定义二进制、端口与目录配置、安装进度与热切换",
+  "engines": {
+    "dsh": ">=0.0.1"
+  },
+  "contributes": {
+    "tools": [],
+    "skills": []
+  },
+  "client": {
+    "main": "./lib/client-registry.js"
+  }
+}
