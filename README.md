@@ -19,8 +19,8 @@ DSH 会话页内嵌的 VS Code 页签（better-sidebar 右侧栏面板，不影�
 cd <dsh 仓库>
 # 2) 安装插件包（将插件行追加进 profile 层栈）
 pnpm dsh plugin --profile web add <本插件目录>/dsh-vscode-bridge-0.1.11.tgz
-# 3) 重启 dsh web（本机开发脚本 restart-dsh-web.sh 可脱离终端重启、日志落盘，该脚本不入库；
-#    也可直接重启 dsh web 进程）
+# 3) 重启 dsh web（脱离终端重启，日志落盘；参数为 dsh 仓库目录与工作区目录，缺省取当前目录）
+bash <本插件目录>/scripts/restart-dsh-web.sh <dsh 仓库> <工作区>
 ```
 
 `dsh plugin add` 会读取包内 `dsh.bundle.patch`（cordis.patch.yml），把插件行追加进 profile 层栈；
@@ -43,7 +43,7 @@ pnpm pack        # 产出 dsh-vscode-bridge-<version>.tgz
 ```
 
 `pnpm pack` 只收录 `files` 白名单内的文件（lib、README、LICENSE、docs 效果图、cordis.patch.yml、
-dsh.plugin.json），仓库里的历史 tgz/工具脚本不会被误打进去。
+dsh.plugin.json），仓库里的历史 tgz 与本机开发脚本不会被误打进去。
 
 **0.1.8 内置扩展资源自动补齐**：code-server 4.135.0 官方 tarball 缺少全部内置扩展的浏览器端
 bundle（`dist/browser/**`），导致 web 端 markdown 预览 not found / 黑屏、emmet 与各语言特性不可用。
@@ -126,7 +126,8 @@ sha256 `300ef4e37e469e6368a4673c6a623e1c9ba8a34f42b394fb49c431a8900bc7d1`
   （服务端日志 `File not found`）→ `Activating extension failed: Not Found` → 命令与自定义编辑器未注册，
   表现为 `command 'markdown.showPreviewToSide' not found` 或 markdown 预览黑屏。
 - **修复**：0.1.8 起插件在 code-server 安装/启动前自动补齐（见上方说明）；
-  本机开发脚本 `fix-builtin-web-entries.mjs`（不入库）可独立重跑：CDN 补文件 + 校验 browser 字段/缓存前缀。
+  `scripts/fix-builtin-web-entries.mjs` 可独立重跑（CDN 补文件 + 校验 browser 字段/缓存前缀）：
+  `node scripts/fix-builtin-web-entries.mjs <code-server安装目录>`。
   本机 4.135.0 安装树已于 2026-08-30 手工补齐并实测：webview 正常渲染预览。
 - **浏览器强缓存**：code-server 对静态前端包下发 `Cache-Control: public, max-age=31536000`
   （一年、无 ETag），同 URL 覆盖文件后普通刷新拿不到新包。已将 `commit` 追加 `-fix1` 后缀
