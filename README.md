@@ -126,13 +126,26 @@ sha256 `300ef4e37e469e6368a4673c6a623e1c9ba8a34f42b394fb49c431a8900bc7d1`
   （服务端日志 `File not found`）→ `Activating extension failed: Not Found` → 命令与自定义编辑器未注册，
   表现为 `command 'markdown.showPreviewToSide' not found` 或 markdown 预览黑屏。
 - **修复**：0.1.8 起插件在 code-server 安装/启动前自动补齐（见上方说明）；
-  `scripts/fix-builtin-web-entries.mjs` 可独立重跑（CDN 补文件 + 校验 browser 字段/缓存前缀）：
-  `node scripts/fix-builtin-web-entries.mjs <code-server安装目录>`。
-  本机 4.135.0 安装树已于 2026-08-30 手工补齐并实测：webview 正常渲染预览。
+  `scripts/fix-builtin-web-entries.mjs` 可独立重跑（CDN 补文件 + browser 字段恢复 + commit 归一化与
+  一致性终检）：`node scripts/fix-builtin-web-entries.mjs <code-server安装目录>`。
+  本机 4.135.0 安装树已于 2026-08-30 手工补齐并实测：webview 正常渲染预览；2026-09-21 重跑脚本
+  修复了 commit 漂移（三处归一为 `-fix2`）并清理了 catalog 历史重复字段（见下两条）。
 - **浏览器强缓存**：code-server 对静态前端包下发 `Cache-Control: public, max-age=31536000`
-  （一年、无 ETag），同 URL 覆盖文件后普通刷新拿不到新包。已将 `commit` 追加 `-fix1` 后缀
-  （`product.json` + 两个前端包内嵌字符串同步改，保证客户端/服务端握手一致）并重启 code-server，
-  静态前缀变为 `stable-…-fix1`，浏览器缓存整体失效。刷新浏览器页面即生效。
+  （一年、无 ETag），同 URL 覆盖文件后普通刷新拿不到新包。做法是把三处 `commit` 归一化为
+  `de89acb…-fix2`（`product.json` + 两个前端包内嵌的编译期 `product.commit`）并重启 code-server，
+  静态前缀变为 `stable-…-fix2`，浏览器整体重新拉取；刷新浏览器页面即生效。
+- **三处 commit 必须一致，否则 web 端握手失败**：服务端在握手第 2 步比较 `product.json` 的 `commit`
+  与客户端 bundle 内编译期 `product.commit`，不等即拒连，服务端日志
+  `Client refused: version mismatch.`；表现为扩展宿主与管理连接全部建立不起来（内置扩展、markdown
+  预览、语言特性全废，session 日志目录下不生成 `exthost*`）。脚本 C 步已改为**幂等归一化**
+  （把 `BASE_COMMIT` 后的任意历史后缀统一改写为目标后缀，不再 `split/join` 追加——旧写法每跑一次
+  就多一个 `-fix1`，正是 `-fix1-fix1-fix1` 漂移的来源），并在 D 步做三处一致性终检，不一致直接
+  `exit 1`。需要新的缓存前缀时改 `COMMIT_SUFFIX` 后重跑脚本 + 重启 code-server。
+- **catalog browser 字段的幂等**：脚本 B 步往 workbench 内联 catalog 补 `browser` 字段时，旧守卫用
+  `seg.includes('browser:')` 判重，只认无引号的 JS 键写法，认不出自己写入的 `"browser":`，于是**每运行
+  一次就给 19 个条目各追加一份**（本机累积到每个前端包 171 份、152 份冗余）。现改为按写入的 marker
+  精确识别并把历史重复**收敛为恰好一份**（插在第一个 `main:"…"` 之后），条目判定与补写位置不变。
+  2026-09-21 已清理 304 处重复；脚本现可反复运行，两次运行后三个文件内容零变化。
 - 遗留噪音：`node_modules/vsda/rust/web/*` 404（官方私有授权 shim，vscode.dev 亦不公开托管），
   仅影响日志干净度；「Build with Agent」面板的 GitHub 登录超时属同源限制，不影响编辑与预览。
 - 若未来更换固化版本（更新 PIN 重新下载 code-server）后再次出现同类问题，重跑该脚本 + 重启即可。

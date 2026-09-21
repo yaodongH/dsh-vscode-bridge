@@ -20,7 +20,8 @@ import { join } from 'node:path'
 
 // ---- 可调参数 ----
 const CDN = 'https://main.vscode-cdn.net/stable/08d4889f9ec4a1685d257b9b95de036c8e1ce1e5' // vscode.dev 官方 CDN（VS Code 1.135.0, commit 08d4889f）
-const COMMIT_SUFFIX = '-fix1' // 静态前缀缓存击穿；设为空字符串则不改 commit
+const COMMIT_SUFFIX = '-fix2' // 归一化目标后缀：三处 commit 一律改写为 BASE_COMMIT + 该后缀（空串 = 去掉后缀）。
+// 换一个值即可击穿浏览器对 static/** 的一年强缓存；改完需重启 code-server。
 
 const installDir = process.argv[2] || process.env.CODE_SERVER_DIR
 if (!installDir) {
@@ -132,36 +133,73 @@ for (const [dir, bp] of Object.entries(RESTORE)) {
 }
 function restoreCatalogEntry(s, dir, bp) {
   const start = s.indexOf(`{extensionPath:"${dir}"`)
-  if (start < 0) return { s, hit: false }
+  if (start < 0) return { s, hit: false, removed: 0 }
   let end = s.indexOf('{extensionPath:"', start + 10)
   if (end < 0) end = s.length
   const seg = s.slice(start, end)
-  if (seg.includes('browser:')) return { s, hit: false }
+  const marker = ',"browser":"' + bp + '"'
+  const copies = seg.split(marker).length - 1
   const m = seg.match(/main:"[^"]*"/)
-  if (!m) return { s, hit: false }
-  return { s: s.slice(0, start) + seg.replace(/main:"[^"]*"/, m[0] + ',"browser":"' + bp + '"') + s.slice(start + seg.length), hit: true }
+  if (copies > 0) {
+    // 本脚本已写入过：无论历史重复几次都收敛为恰好一份，固定插在第一个 main 之后。
+    // 旧守卫只认无引号的 `browser:`，认不出自己写入的 `"browser":`，于是每运行一次就多追加一份。
+    if (!m) return { s, hit: false, removed: 0 }
+    const cleaned = seg.split(marker).join('').replace(/main:"[^"]*"/, m[0] + marker)
+    const next = s.slice(0, start) + cleaned + s.slice(end)
+    return { s: next, hit: next !== s, removed: copies - 1 }
+  }
+  // 从未写入过：保持原判定，仅在条目缺 browser 字段且带 main 时补一份
+  if (seg.includes('browser:') || !m) return { s, hit: false, removed: 0 }
+  const next = s.slice(0, start) + seg.replace(/main:"[^"]*"/, m[0] + marker) + s.slice(end)
+  return { s: next, hit: next !== s, removed: 0 }
 }
 const bundles = ['out/vs/workbench/workbench.web.main.internal.js', 'out/vs/code/browser/workbench/workbench.js']
+let catalogRemoved = 0
 for (const file of bundles) {
-  let s = fs.readFileSync(file, 'utf8')
-  for (const [dir, bp] of Object.entries(RESTORE)) { const r = restoreCatalogEntry(s, dir, bp); s = r.s }
+  const before = fs.readFileSync(file, 'utf8')
+  let s = before
+  for (const [dir, bp] of Object.entries(RESTORE)) { const r = restoreCatalogEntry(s, dir, bp); s = r.s; catalogRemoved += r.removed }
+  if (s === before) continue // 已恢复过：不重写 18MB 前端包，保持整脚本可重复执行
   fs.writeFileSync(file, s)
   try { execFileSync('node', ['--check', file]); } catch (e) { console.log('SYNTAX FAIL', file, e.message); process.exit(1) }
 }
+if (catalogRemoved > 0) console.log('catalog 历史重复 browser 字段收敛:', catalogRemoved, '处')
 console.log('catalog/manifest browser 字段恢复 ✓')
 
-// ---- C. commit 后缀（缓存击穿；需重启 code-server 生效）----
-if (COMMIT_SUFFIX) {
-  const j = JSON.parse(fs.readFileSync('product.json', 'utf8'))
-  if (!j.commit.endsWith(COMMIT_SUFFIX)) { j.commit += COMMIT_SUFFIX; fs.writeFileSync('product.json', JSON.stringify(j, null, 2)) }
-  for (const file of bundles) {
-    let s = fs.readFileSync(file, 'utf8').split(BASE_COMMIT).join(BASE_COMMIT + COMMIT_SUFFIX)
-    fs.writeFileSync(file, s)
-    try { execFileSync('node', ['--check', file]) } catch (e) { console.log('SYNTAX FAIL', e.message); process.exit(1) }
-  }
-  console.log('commit →', BASE_COMMIT + COMMIT_SUFFIX, '（重启 code-server 后生效；浏览器缓存整体失效）')
+// ---- C. commit 后缀归一化（缓存击穿；需重启 code-server 生效）----
+// 幂等：BASE_COMMIT 后面的任意历史后缀（-fix1、-fix1-fix1…）一律改写为 BASE_COMMIT + COMMIT_SUFFIX。
+// 服务端握手第 2 步比较 product.json 的 commit 与 web 客户端 bundle 内编译期 product.commit，
+// 两者不等即拒连（日志 "Client refused: version mismatch."），因此三处必须始终一致。
+const COMMIT_RE = new RegExp(BASE_COMMIT + '(?:-[0-9A-Za-z]+)*', 'g')
+const TARGET_COMMIT = BASE_COMMIT + COMMIT_SUFFIX
+const productJson = JSON.parse(fs.readFileSync('product.json', 'utf8'))
+if (productJson.commit !== TARGET_COMMIT) {
+  productJson.commit = TARGET_COMMIT
+  fs.writeFileSync('product.json', JSON.stringify(productJson, null, 2))
 }
-// ---- D. 终检 ----
+for (const file of bundles) {
+  const before = fs.readFileSync(file, 'utf8')
+  const after = before.replace(COMMIT_RE, TARGET_COMMIT)
+  if (after === before) continue
+  fs.writeFileSync(file, after)
+  try { execFileSync('node', ['--check', file]) } catch (e) { console.log('SYNTAX FAIL', file, e.message); process.exit(1) }
+}
+console.log('commit →', TARGET_COMMIT, '（重启 code-server 后生效；浏览器缓存整体失效）')
+
+// ---- D. 一致性终检：三处 commit 必须完全相同（不等则 web 端必定握手失败）----
+const commitSeen = new Map()
+commitSeen.set('product.json', JSON.parse(fs.readFileSync('product.json', 'utf8')).commit)
+for (const file of bundles) {
+  const hits = [...new Set(fs.readFileSync(file, 'utf8').match(new RegExp(BASE_COMMIT + '(?:-[0-9A-Za-z]+)*', 'g')) || [])]
+  commitSeen.set(file, hits.length === 1 ? hits[0] : '(' + (hits.join(' / ') || '未找到 BASE_COMMIT') + ')')
+}
+for (const [file, commit] of commitSeen) console.log('commit 校验:', file, '=', commit)
+if (new Set(commitSeen.values()).size !== 1) {
+  console.error('一致性校验失败：三处 commit 不一致 → 浏览器端会被拒连（Client refused: version mismatch.）')
+  process.exit(1)
+}
+
+// ---- E. 补齐终检 ----
 let leftover = 0
 for (const [dir, bp] of Object.entries(RESTORE)) {
   const rel = bp.replace(/^\.\//, '')
