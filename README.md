@@ -107,7 +107,9 @@ sha256 `300ef4e37e469e6368a4673c6a623e1c9ba8a34f42b394fb49c431a8900bc7d1`
   暴露 `/dsh-vscode/*`（status/config/control，JSON）；安装前自动补齐内置扩展浏览器端资源。
 - Client 模块（`lib/client-registry.js`）：优先注册为 better-sidebar 页签，否则中心区视图 + 设置页，
   15s→1.5s 状态轮询（仅订阅时），iframe 直连 code-server 回环地址；`?folder=` 打开**当前会话所在
-  空间目录**（读 DSH client `sessions` 服务里当前会话的 cwd，缺省回退「工作区路径」），随 control
+  空间目录**：会话身份取 `uiSession.adapter.current` 的 binding key（视图侧 main 选择），并订阅
+  `uiSession`/`sessions`/`workspaces` 快照，切换空间立即跟随；目录优先取会话头 `cwd`，其次取
+  `workspaces.items` 中 `sessionIds` 含该会话的 `path`，都取不到才回退「工作区路径」；随 control
   上报宿主用于启动目录。
 - 插件停止/卸载会树级终止 code-server 并撤销路由。
 
@@ -146,6 +148,13 @@ sha256 `300ef4e37e469e6368a4673c6a623e1c9ba8a34f42b394fb49c431a8900bc7d1`
   一次就给 19 个条目各追加一份**（本机累积到每个前端包 171 份、152 份冗余）。现改为按写入的 marker
   精确识别并把历史重复**收敛为恰好一份**（插在第一个 `main:"…"` 之后），条目判定与补写位置不变。
   2026-09-21 已清理 304 处重复；脚本现可反复运行，两次运行后三个文件内容零变化。
+- **打开目录跟随失效（2026-09-21 修复）**：client 曾用 `sessions.list.getSnapshot().current` 取当前会话，
+  但 DSH client 重构后 `SessionListState` 只保留 `ids/byId/phase`（导航归视图侧所有），该字段恒为
+  `undefined` → 解析恒失败 → 恒回退 `workspacePath`，表现为「换空间后 VS Code 仍打开固定工作区」，
+  宿主日志 `client 空间解析 trace: none(S1,W1)`。现改取 `uiSession.adapter.current` 的 binding key
+  （并以 `localStorage['dsh.sessions.current']` 兜底），并新增 `subscribeSpaceDir` 订阅
+  `uiSession`/`sessions`/`workspaces`，使切换空间时目录即时更新（不再依赖状态轮询重渲染）。
+  trace 形如 `session(C1:ui,S1,W1)`；`none(...)` 表示仍未识别到空间。
 - 遗留噪音：`node_modules/vsda/rust/web/*` 404（官方私有授权 shim，vscode.dev 亦不公开托管），
   仅影响日志干净度；「Build with Agent」面板的 GitHub 登录超时属同源限制，不影响编辑与预览。
 - 若未来更换固化版本（更新 PIN 重新下载 code-server）后再次出现同类问题，重跑该脚本 + 重启即可。
