@@ -90,10 +90,26 @@ const writeAt = (rel, buf) => {
   fs.writeFileSync(EXT + '/' + rel, buf)
 }
 
+// 运行期 new Worker / importScripts 动态拉起的 worker 入口：静态 import 解析扫不到，须显式列出。
+// json/css/html 语言服务的浏览器端 server 缺失时，web 端报
+// "Client ... Language Server: connection to server is erroring ... failed to load"。
+const WORKER_EXTRAS = {
+  'markdown-language-features': ['dist/browser/serverWorkerMain.js'],
+  'json-language-features': ['server/dist/browser/jsonServerMain.js'],
+  'css-language-features': ['server/dist/browser/cssServerMain.js'],
+  'html-language-features': ['server/dist/browser/htmlServerMain.js'],
+}
+
 const queue = []
 for (const [dir, bp] of Object.entries(RESTORE)) {
   const rel = bp.replace(/^\.\//, '')
   if (missingInTree(dir + '/' + rel)) queue.push({ dir, rel })
+}
+for (const [dir, files] of Object.entries(WORKER_EXTRAS)) {
+  for (const f of files) {
+    const rel = f.replace(/^\.\//, '')
+    if (missingInTree(dir + '/' + rel)) queue.push({ dir, rel })
+  }
 }
 console.log('CDN 待下载入口:', queue.length)
 const seen = new Set()

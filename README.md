@@ -18,7 +18,7 @@ DSH 会话页内嵌的 VS Code 页签（better-sidebar 右侧栏面板，不影�
 # 1) 进入 DSH 仓库
 cd <dsh 仓库>
 # 2) 安装插件包（将插件行追加进 profile 层栈）
-pnpm dsh plugin --profile web add <本插件目录>/dsh-vscode-bridge-0.1.11.tgz
+pnpm dsh plugin --profile web add <本插件目录>/dsh-vscode-bridge-0.1.13.tgz
 # 3) 重启 dsh web（脱离终端重启，日志落盘；参数为 dsh 仓库目录与工作区目录，缺省取当前目录）
 bash <本插件目录>/scripts/restart-dsh-web.sh <dsh 仓库> <工作区>
 ```
@@ -69,6 +69,28 @@ control 上报，宿主在 `~/.dsh/dsh-web.log` 记录 `client 空间解析 trac
 `lib/client-registry.js` 的修改从未到达浏览器（表现为跟随完全不生效）。本版本起
 `lib/client.js` 与 `lib/client-registry.js` 保持字节一致，且打包时由 `prepack` 钩子强制同步，
 杜绝两个入口各自漂移。
+
+**0.1.13 黑屏修复（keep-alive iframe 层叠级）**：在 DSH 原生右栏（better-sidebar 0.19+ / DSH
+0.1.5 宿主）下表现为「code-server 进程与握手全部正常、状态条显示运行中，但 VS Code 页面一片黑」。
+根因：保活 iframe 是 body 直挂的 `position:fixed` 浮层，其 z-index 必须盖过**包含舞台的整条
+层叠链**；而 DSH 原生 tab 单元格（`div._tabCell_*`）是 **grid 子项且 z-index:10**——z-index 对
+flex/grid 子项即使 `position:static` 也生效并创建层叠上下文，旧计算只认 `position!=static` 的
+祖先，恒算出 z=1，iframe 被整个 tab 体压在下面（命中测试也只打到舞台，画面是舞台的 `#1e1e1e`
+底色）。现按「定位元素**或** flex/grid 子项且 z-index 非 auto」计级（本例算得 z=11），并在每次
+定位后做命中测试自愈：覆盖中心若被「包含舞台」的宿主层压住则逐级抬 z 重试（上限 2000），
+不含舞台的真浮层（弹窗/下拉/菜单）不抢层。属纯 client 侧改动，重装 tgz 后**刷新浏览器即生效**
+（无需重启 dsh web）。
+
+**0.1.14 内置扩展补齐自愈（路径 bug + 语言服务 worker）**：0.1.8 的自动补齐从未真正执行过——
+`ensureBuiltinWebBundles` 收到的是安装根 `<install>`，却直接拼 `<install>/lib/vscode`（真实树在
+`<install>/code-server-4.135.0-linux-amd64/lib/vscode`），`extensions/package.json` 判定恒不成立、
+静默 `return 0`，所以磁盘上也没有 `web-bundles-patch.json` 标记，安装树一直靠手工跑脚本补齐。
+本版本起自动识别两种传参形态（缺 `lib/vscode` 时补上 `PIN.root` 一层）。同时补齐清单新增
+json / css / html 语言服务的**浏览器端 server worker**（`server/dist/browser/*ServerMain.js`）——
+它们由扩展运行期 `new Worker`/`importScripts` 动态拉起，静态 import 解析扫不到，之前既不在
+`WEB_BUNDLE_EXTRAS` 也不在脚本清单里，web 端一打开就报
+`Client JSON Language Server: connection to server is erroring ... failed to load`。
+清单带 `revision` 修订号（当前 2）：增补条目后旧标记不会永久跳过，会重新扫描下载。
 
 ## 功能入口
 
@@ -155,6 +177,11 @@ sha256 `300ef4e37e469e6368a4673c6a623e1c9ba8a34f42b394fb49c431a8900bc7d1`
   （并以 `localStorage['dsh.sessions.current']` 兜底），并新增 `subscribeSpaceDir` 订阅
   `uiSession`/`sessions`/`workspaces`，使切换空间时目录即时更新（不再依赖状态轮询重渲染）。
   trace 形如 `session(C1:ui,S1,W1)`；`none(...)` 表示仍未识别到空间。
+- **keep-alive iframe 被 tab 体压住 → 全黑（2026-09-25 修复）**：症状为状态条正常、code-server
+  握手与扩展宿主全部正常，但 VS Code 画面一片黑；`document.elementFromPoint(覆盖中心)` 打到
+  `.dshvs-stage` 而非 iframe。判据是宿主 tab 单元格 `div._tabCell_*` 的 `z-index`（grid 子项，
+  z-index 对 flex/grid 子项即使 `position:static` 也生效）。详见上方 0.1.13 说明；同类复发时
+  先做命中测试，再看 `showIdeOver` 的 z 计级。
 - 遗留噪音：`node_modules/vsda/rust/web/*` 404（官方私有授权 shim，vscode.dev 亦不公开托管），
   仅影响日志干净度；「Build with Agent」面板的 GitHub 登录超时属同源限制，不影响编辑与预览。
 - 若未来更换固化版本（更新 PIN 重新下载 code-server）后再次出现同类问题，重跑该脚本 + 重启即可。
