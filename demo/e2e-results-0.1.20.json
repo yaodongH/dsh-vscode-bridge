@@ -1,0 +1,92 @@
+[
+  {
+    "name": "1. 打开 VS Code 产生 1 个实例",
+    "ok": true,
+    "detail": "frames=1"
+  },
+  {
+    "name": "1. 实例 folder = 会话 A 所在空间",
+    "ok": true,
+    "detail": "/?folder=/home/huangyaodong/deepseek-harness-workspace&dshrun=1790330906651"
+  },
+  {
+    "name": "2. 跨空间自动新建实例",
+    "ok": true,
+    "detail": "frames=2"
+  },
+  {
+    "name": "2. 池未满不弹窗",
+    "ok": true,
+    "detail": "null"
+  },
+  {
+    "name": "3. 切回原空间实例数不变",
+    "ok": true,
+    "detail": "frames=2"
+  },
+  {
+    "name": "3. 池内秒切零重载",
+    "ok": true,
+    "detail": "navs=0"
+  },
+  {
+    "name": "4. 池满弹窗出现",
+    "ok": true,
+    "detail": "{\"target\":\"/home/huangyaodong/cmdb-ops\",\"options\":[\"api-management-workspace会话：「API工作流事件管理进展与后续工作」/home/huangyaodong/api-management-workspace最近使用 6:12:12 PM · 已加载\",\"deepseek-harness-workspace（当前显示）会话：「重构实例池弹窗与会话标题展示」/home/huangyaodong/deepseek-harness-workspace最近使用 6:12:16 PM · 已加载\"],\"desc\":\"打开「cmdb-ops」（「CMDB-Ops sayhi命令历史记录去重优化方案设计」）需要新实例，实例池已满（上限 2）。选择要踢出的实例——其未保存文件由 VS Code 自身保存，重开该目录时可恢复：\"}"
+  },
+  {
+    "name": "4. 弹窗列出 2 个可腾位实例",
+    "ok": true,
+    "detail": "options=2"
+  },
+  {
+    "name": "4. 候选含空间 A 的会话标题",
+    "ok": true,
+    "detail": "api-management-workspace会话：「API工作流事件管理进展与后续工作」/home/huangyaodong/api-management-workspace最近使用 6:12:12 PM · 已加载 | deepseek-harness-workspace（当前显示）会话：「重构实例池弹窗与会话标题展示」/home/huangyaodong/deepseek-harness-workspace最近使用 6:12:16 PM · 已加载"
+  },
+  {
+    "name": "4. 候选含空间 B 的会话标题",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "name": "4. 描述行含触发会话标题",
+    "ok": true,
+    "detail": "打开「cmdb-ops」（「CMDB-Ops sayhi命令历史记录去重优化方案设计」）需要新实例，实例池已满（上限 2）。选择要踢出的实例——其未保存文件由 VS Code 自身保存，重开该目录时可恢复："
+  },
+  {
+    "name": "5. 取消后实例数不变",
+    "ok": true,
+    "detail": "frames=2"
+  },
+  {
+    "name": "5. 取消后弹窗关闭",
+    "ok": true,
+    "detail": "null"
+  },
+  {
+    "name": "5. 状态条提示未跟随",
+    "ok": true,
+    "detail": "VS Code: 运行中（端口 18654）v4.135.0打开: deepseek-harness-workspace（跟随当前空间）（实例池已满，仍显示 deepseek-harness-workspace）停止重启新窗口"
+  },
+  {
+    "name": "6. 切回后重新弹窗",
+    "ok": true,
+    "detail": "{\"target\":\"/home/huangyaodong/cmdb-ops\",\"options\":[\"deepseek-harness-workspace会话：「重构实例池弹窗与会话标题展示」/home/huangyaodong/deepseek-harness-workspace最近使用 6:12:16 PM · 已加载\",\"api-management-workspace（当前显示）会话：「API工作流事件管理进展与后续工作」/home/huangyaodong/api-management-workspace最近使用 6:12:30 PM · 已加载\"],\"desc\":\"打开「cmdb-ops」（「CMDB-Ops sayhi命令历史记录去重优化方案设计」）需要新实例，实例池已满（上限 2）。选择要踢出的实例——其未保存文件由 VS Code 自身保存，重开该目录时可恢复：\"}"
+  },
+  {
+    "name": "6. 腾位后实例数恒为上限",
+    "ok": true,
+    "detail": "frames=2"
+  },
+  {
+    "name": "6. 新空间实例已建立",
+    "ok": true,
+    "detail": "[\"/?folder=/home/huangyaodong/api-management-wor\",\"/?folder=/home/huangyaodong/cmdb-ops&dshrun=17\"]"
+  },
+  {
+    "name": "7. 设置页含「实例池上限」字段",
+    "ok": true,
+    "detail": "count=2"
+  }
+]

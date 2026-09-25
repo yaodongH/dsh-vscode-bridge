@@ -18,7 +18,7 @@ DSH 会话页内嵌的 VS Code 页签（better-sidebar 右侧栏面板，不影�
 # 1) 进入 DSH 仓库
 cd <dsh 仓库>
 # 2) 安装插件包（将插件行追加进 profile 层栈）
-pnpm dsh plugin --profile web add <本插件目录>/dsh-vscode-bridge-0.1.19.tgz
+pnpm dsh plugin --profile web add <本插件目录>/dsh-vscode-bridge-0.1.20.tgz
 # 3) 重启 dsh web（脱离终端重启，日志落盘；参数为 dsh 仓库目录与工作区目录，缺省取当前目录）
 bash <本插件目录>/scripts/restart-dsh-web.sh <dsh 仓库> <工作区>
 ```
@@ -105,6 +105,10 @@ user settings，之后不再跟随文件变化，而旧实现只是"挂载时随
 「忽略 `Default ` 前缀与大小写」比较（workbench 会把值规范化成当前构建的标签，如
 `Default Dark Modern` → `Dark Modern`），不再重复改写。同属 client 侧改动，刷新浏览器生效。
 
+**0.1.20 弹窗会话标题**：满池腾位弹窗的每个候选实例增加「会话：…」一行（该空间的会话展示名，
+超过 2 个折叠为「等 N 个会话」），触发弹窗的描述行也带上当前会话标题——用户按会话判断踢谁，
+不必反查目录归属。
+
 **0.1.19 实例池（按 workspace 缓存 + 满池弹窗腾位）**：此前一个浏览器页签只有一个保活 iframe，
 URL 绑定「当前会话空间」（`?folder=`），**跨 workspace 切换会话等于换 URL → 整页导航 → workbench
 冷启动**，切回来再冷启动一次（同 workspace 因 URL 不变反而零重载）。本版本起按 **folder 建实例池**
@@ -117,6 +121,9 @@ URL 绑定「当前会话空间」（`?folder=`），**跨 workspace 切换会�
 重载收敛（`dshreload` 计数 per 实例）；上限下调 → 按最近使用自动 LRU 收缩（不弹窗）。
 实例数即 workbench + 扩展宿主数量，建议 1–3。同属 client 侧改动，刷新浏览器生效
 （`instancePoolSize` 校验在下次重启 dsh web 后生效，旧宿主下客户端按默认 2 兜底）。
+
+- **隔离调试**：`DSH_VSCODE_BRIDGE_WORKSPACE` 环境变量可覆盖插件的工作区根（数据/安装/下载目录
+  与 config.json 的锚点），供独立 profile/端口的调试实例使用，不与主实例共用 code-server 端口与数据。
 
 ## 功能入口
 
@@ -160,7 +167,7 @@ sha256 `300ef4e37e469e6368a4673c6a623e1c9ba8a34f42b394fb49c431a8900bc7d1`
   空间目录**：会话身份取 `uiSession.adapter.current` 的 binding key（视图侧 main 选择），并订阅
   `uiSession`/`sessions`/`workspaces` 快照，切换空间立即跟随；目录优先取会话头 `cwd`，其次取
   `workspaces.items` 中 `sessionIds` 含该会话的 `path`，都取不到才回退「工作区路径」；随 control
-  上报宿主用于启动目录。**实例池（0.1.19）**：`Map<folder, inst>` 按 folder 缓存 keep-alive iframe
+  上报宿主用于启动目录。**实例池（0.1.19-0.1.20）**：`Map<folder, inst>` 按 folder 缓存 keep-alive iframe
   （body 直挂 fixed 浮层，节点绝不移动），切空间只切换可见性与几何 → 池内秒切；池满弹窗选腾位；
   code-server 重启整池重建、主题变化全池重载收敛、上限下调按 LRU 收缩。
 - 插件停止/卸载会树级终止 code-server 并撤销路由。
