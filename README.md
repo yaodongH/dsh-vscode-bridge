@@ -92,6 +92,19 @@ json / css / html 语言服务的**浏览器端 server worker**（`server/dist/b
 `Client JSON Language Server: connection to server is erroring ... failed to load`。
 清单带 `revision` 修订号（当前 2）：增补条目后旧标记不会永久跳过，会重新扫描下载。
 
+**0.1.15 主题跟随收敛（DSH 深色 / VS Code 浅色）**：code-server 的 workbench **只在启动时读取一次**
+user settings，之后不再跟随文件变化，而旧实现只是"挂载时随手 POST 一次"，于是三处断点叠加：
+① 推送与 iframe 启动并发，启动先读到旧值就永远停在旧主题（浅色），此后任何写入都无效；
+② DSH 主题变化经 ctx 的 `theme/change` 事件发布（`ThemeRuntime` 并无 `subscribe` 方法，旧代码
+`themeService.subscribe` 恒不成立），切换 DSH 主题从不触发推送；
+③ 宿主 `writeFileSync` 直写 `settings.json`，workbench 启动时撕裂读到空/半截文件会解析失败、
+回退 `prefers-color-scheme`（多为浅色）。现改为：**先推主题、POST 落盘后再启动 iframe**；推送值与
+当前 workbench 启动值不一致时**重载保活 iframe** 强制重读（切换 DSH 主题即跟随，实测 2~3 秒收敛）；
+`ctx.on('theme/change')` + 状态轮询零成本差值检查双通道跟随；取值显式 `preference`（dark/light）
+优先、`system` 才按浏览器解析，避免多客户端互相覆盖；宿主改原子写（tmp+rename）并按
+「忽略 `Default ` 前缀与大小写」比较（workbench 会把值规范化成当前构建的标签，如
+`Default Dark Modern` → `Dark Modern`），不再重复改写。同属 client 侧改动，刷新浏览器生效。
+
 ## 功能入口
 
 - **VS Code 页签**：优先呈现为 dsh-better-sidebar 右侧栏页签（如已安装该插件，不影响主界面交互），
