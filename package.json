@@ -1,6 +1,6 @@
 {
   "name": "dsh-vscode-bridge",
-  "version": "0.1.15",
+  "version": "0.1.19",
   "description": "DSH web plugin: 在 DSH 中心区视图嵌入固定版本 code-server（VS Code Web），支持自定义服务器路径/端口配置、安装进度与热切换。",
   "type": "module",
   "main": "lib/index.js",

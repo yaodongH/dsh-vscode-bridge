@@ -18,7 +18,7 @@ DSH 会话页内嵌的 VS Code 页签（better-sidebar 右侧栏面板，不影�
 # 1) 进入 DSH 仓库
 cd <dsh 仓库>
 # 2) 安装插件包（将插件行追加进 profile 层栈）
-pnpm dsh plugin --profile web add <本插件目录>/dsh-vscode-bridge-0.1.13.tgz
+pnpm dsh plugin --profile web add <本插件目录>/dsh-vscode-bridge-0.1.19.tgz
 # 3) 重启 dsh web（脱离终端重启，日志落盘；参数为 dsh 仓库目录与工作区目录，缺省取当前目录）
 bash <本插件目录>/scripts/restart-dsh-web.sh <dsh 仓库> <工作区>
 ```
@@ -105,14 +105,29 @@ user settings，之后不再跟随文件变化，而旧实现只是"挂载时随
 「忽略 `Default ` 前缀与大小写」比较（workbench 会把值规范化成当前构建的标签，如
 `Default Dark Modern` → `Dark Modern`），不再重复改写。同属 client 侧改动，刷新浏览器生效。
 
+**0.1.19 实例池（按 workspace 缓存 + 满池弹窗腾位）**：此前一个浏览器页签只有一个保活 iframe，
+URL 绑定「当前会话空间」（`?folder=`），**跨 workspace 切换会话等于换 URL → 整页导航 → workbench
+冷启动**，切回来再冷启动一次（同 workspace 因 URL 不变反而零重载）。本版本起按 **folder 建实例池**
+（`Map<folder, inst>`，每个实例独立的 body 直挂浮层 + iframe）：
+- 同空间会话互切：命中同一实例，零重载（未保留状态不丢）；
+- 跨空间切换：池内有 → **秒切**（只切可见性与几何）；池内无且未满 → 新建实例（一次冷启动）；
+- 池满（上限可配「实例池上限」，默认 2、1–8）→ **弹窗让用户选择要踢出的实例**（默认预选最近最少
+  使用，可取消；取消则继续显示当前实例并提示）。被踢实例整体销毁（iframe 置 `about:blank`）  其未保存文件由 VS Code 自身的 hot-exit 保存、重开该目录可恢复。
+失效与收敛：code-server 重启（`dshrun` 变）→ 整池重建；DSH 主题变化 → 池内所有已加载实例各自
+重载收敛（`dshreload` 计数 per 实例）；上限下调 → 按最近使用自动 LRU 收缩（不弹窗）。
+实例数即 workbench + 扩展宿主数量，建议 1–3。同属 client 侧改动，刷新浏览器生效
+（`instancePoolSize` 校验在下次重启 dsh web 后生效，旧宿主下客户端按默认 2 兜底）。
+
 ## 功能入口
 
 - **VS Code 页签**：优先呈现为 dsh-better-sidebar 右侧栏页签（如已安装该插件，不影响主界面交互），
   否则回退为中心区「VS Code」标签页；状态灯 / 当前打开目录 / 启动停止重启 / iframe 全幅嵌入；
   打开目录默认跟随当前会话所在 DSH 空间，切换空间后重开 VS Code 即定位到新空间目录。
+  **按 workspace 缓存实例**（实例池，默认保留 2 个）：同空间会话互切、或切回之前开过的空间，
+  都直接秒切到已存活实例、零重载；池满时弹窗选择要踢出的实例。
 - **设置页**：侧栏齿轮 → 「VS Code Server」——serverMode（pinned/custom）、customBinaryPath、端口、
-  打开目录跟随开关、工作区路径（跟随关闭时的默认打开目录）、安装/数据/下载目录、autoStart、
-  附加参数；配置持久化于 `<工作区>/.dsh/vscode-bridge/config.json`。
+  打开目录跟随开关、工作区路径（跟随关闭时的默认打开目录）、实例池上限、安装/数据/下载目录、
+  autoStart、附加参数；配置持久化于 `<工作区>/.dsh/vscode-bridge/config.json`。
 
 ## 依赖
 
@@ -145,7 +160,9 @@ sha256 `300ef4e37e469e6368a4673c6a623e1c9ba8a34f42b394fb49c431a8900bc7d1`
   空间目录**：会话身份取 `uiSession.adapter.current` 的 binding key（视图侧 main 选择），并订阅
   `uiSession`/`sessions`/`workspaces` 快照，切换空间立即跟随；目录优先取会话头 `cwd`，其次取
   `workspaces.items` 中 `sessionIds` 含该会话的 `path`，都取不到才回退「工作区路径」；随 control
-  上报宿主用于启动目录。
+  上报宿主用于启动目录。**实例池（0.1.19）**：`Map<folder, inst>` 按 folder 缓存 keep-alive iframe
+  （body 直挂 fixed 浮层，节点绝不移动），切空间只切换可见性与几何 → 池内秒切；池满弹窗选腾位；
+  code-server 重启整池重建、主题变化全池重载收敛、上限下调按 LRU 收缩。
 - 插件停止/卸载会树级终止 code-server 并撤销路由。
 
 ## 安全与治理
