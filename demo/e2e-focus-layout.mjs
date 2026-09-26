@@ -1,4 +1,4 @@
-// dsh-vscode-bridge 0.1.21 e2e：专注布局（新开的 VS Code 默认只显示 Codex）
+// dsh-vscode-bridge 0.1.22 e2e：专注布局（新开的 VS Code 默认只显示 Codex）+ 信任目录（禁用 Restricted Mode）
 // 隔离调试实例 3190（DSH_HOME=/tmp/dsh-dev-home，DSH_VSCODE_BRIDGE_WORKSPACE=/tmp/dsh-dev-ws，
 // code-server 落 18654）。按工作空间规则 1，全程未触碰 3080 主实例。
 // 用法：DSH_URL='http://127.0.0.1:3190/?token=<token>' node demo/e2e-focus-layout.mjs
@@ -63,6 +63,7 @@ try {
   fs.rmSync('/tmp/dsh-dev-ws/.dsh/vscode-bridge/data/user-data', { recursive: true, force: true });
   const cfg = JSON.parse(fs.readFileSync(CFG, 'utf8'));
   cfg.focusLayout = true;
+  cfg.trustWorkspace = true;
   cfg.instancePoolSize = 8;
   fs.writeFileSync(CFG, JSON.stringify(cfg, null, 2) + '\n');
   await jpost('/dsh-vscode/control', { action: 'ensure' });
@@ -197,7 +198,10 @@ check('V1 面板收起', l1.nopanel && (l1.panel === null || l1.panel.h < 5), 'p
 check('V1 状态栏隐藏（boot 级键）', l1.nostatusbar && (l1.statusbar === null || l1.statusbar.h < 5), 'statusbar=' + JSON.stringify(l1.statusbar));
 check('V1 活动栏保留（决策点）', !l1.noactivitybar && l1.activitybar && l1.activitybar.w > 10, 'activitybar=' + JSON.stringify(l1.activitybar));
 check('V1 副边栏(Codex)最大化占满', focusedShape(l1), 'aux=' + JSON.stringify(l1.aux) + ' classes: ' + ['nosidebar', 'nomaineditorarea', 'nopanel', 'nostatusbar', 'noauxiliarybar', 'noactivitybar'].map((c) => c + '=' + l1[c]).join(' '));
-check('V1 三键落盘 settings.json', (() => { const sj = settingsJson(); return sj['workbench.secondarySideBar.defaultVisibility'] === 'maximized' && sj['workbench.statusBar.visible'] === false && sj['workbench.startupEditor'] === 'none'; })(), settingsKeys(settingsJson()));
+// 信任目录（0.1.22）：无 Restricted Mode 横幅 + trust 键落盘（随 focus 三键同一 POST 写入）
+const frameText1 = await fa.evaluate(() => (document.body.textContent || '').slice(0, 20000));
+check('V1 无 Restricted Mode 信任横幅', !frameText1.includes('Restricted Mode'), 'bannerText=' + (frameText1.includes('Restricted Mode') ? 'present' : 'absent'));
+check('V1 四键落盘 settings.json（含 trust）', (() => { const sj = settingsJson(); return sj['workbench.secondarySideBar.defaultVisibility'] === 'maximized' && sj['workbench.statusBar.visible'] === false && sj['workbench.startupEditor'] === 'none' && sj['security.workspace.trust.enabled'] === false; })(), settingsKeys(settingsJson()) + ' trust=' + JSON.stringify(settingsJson()['security.workspace.trust.enabled']));
 await shot('01-focus-alpha');
 
 // 尽力把副边栏切到 CODEX 容器（首开默认容器可能是 CHAT，点一次即持久化）
@@ -252,7 +256,7 @@ check('V4 关闭专注：alpha 状态栏恢复', !l4a.nostatusbar && l4a.statusb
 check('V4 关闭专注：alpha 保留用户布局', normalShape(l4a), 'sidebar=' + JSON.stringify(l4a.sidebar));
 const l4b = await layoutOf(await waitVsFrame('spaces/beta'));
 check('V4 关闭专注：beta 保持专注（wasLastMaximized 已持久化）', focusedShape(l4b), 'aux=' + JSON.stringify(l4b.aux));
-check('V4 开关经 ' + via4 + ' 生效且三键已移除', (() => { const sj = settingsJson(); return !sj['workbench.secondarySideBar.defaultVisibility'] && sj['workbench.statusBar.visible'] === undefined && !sj['workbench.startupEditor']; })(), settingsKeys(settingsJson()));
+check('V4 开关经 ' + via4 + ' 生效：focus 三键移除、trust 键保留', (() => { const sj = settingsJson(); return !sj['workbench.secondarySideBar.defaultVisibility'] && sj['workbench.statusBar.visible'] === undefined && !sj['workbench.startupEditor'] && sj['security.workspace.trust.enabled'] === false; })(), settingsKeys(settingsJson()));
 await shot('06-focus-off-alpha');
 
 await clickSessionByTitle(TITLES.gamma, 'gamma');
@@ -275,7 +279,7 @@ const fd = await waitVsFrame('spaces/delta');
 await page.waitForTimeout(3000);
 const l5 = await layoutOf(fd);
 check('V5 重新开启：delta 全新空间再次自动进专注', focusedShape(l5), 'aux=' + JSON.stringify(l5.aux) + ' classes: nosidebar=' + l5.nosidebar + ' nomaineditorarea=' + l5.nomaineditorarea + ' nostatusbar=' + l5.nostatusbar);
-check('V5 开关经 ' + via5 + ' 生效且三键重新落盘', (() => { const sj = settingsJson(); return sj['workbench.secondarySideBar.defaultVisibility'] === 'maximized' && sj['workbench.statusBar.visible'] === false; })(), settingsKeys(settingsJson()));
+check('V5 开关经 ' + via5 + ' 生效且四键重新落盘', (() => { const sj = settingsJson(); return sj['workbench.secondarySideBar.defaultVisibility'] === 'maximized' && sj['workbench.statusBar.visible'] === false && sj['security.workspace.trust.enabled'] === false; })(), settingsKeys(settingsJson()));
 await shot('08-focus-on-delta');
 
 // ─── V6：设置页 UI 检查（只读：勾选框存在且状态与配置一致；截图为证，不写入）───
@@ -306,7 +310,7 @@ try {
   console.log('  [V6] skipped: ' + String(e).slice(0, 120));
 }
 
-fs.writeFileSync(`${OUT}/e2e-results-0.1.21.json`, JSON.stringify({ when: new Date().toISOString(), results }, null, 1));
+fs.writeFileSync(`${OUT}/e2e-results-0.1.22.json`, JSON.stringify({ when: new Date().toISOString(), results }, null, 1));
 const pass = results.filter((r) => r.ok).length;
 console.log(`RESULT: ${pass}/${results.length} passed`);
 await browser.close();

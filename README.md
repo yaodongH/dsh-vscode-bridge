@@ -105,6 +105,14 @@ user settings，之后不再跟随文件变化，而旧实现只是"挂载时随
 「忽略 `Default ` 前缀与大小写」比较（workbench 会把值规范化成当前构建的标签，如
 `Default Dark Modern` → `Dark Modern`），不再重复改写。同属 client 侧改动，刷新浏览器生效。
 
+**0.1.22 信任打开的目录（禁用 Restricted Mode）**：设置页新增「信任打开的目录」开关（默认开）。
+开启时随 `/dsh-vscode/layout` 向 code-server 的 user settings.json 恒写
+`security.workspace.trust.enabled: false`（幂等、原子写，与专注布局三键同一落盘通道、每次 iframe
+启动前先落盘）；否则打开目录即处于 Restricted Mode（顶部「Restricted Mode is intended for safe code
+browsing…」信任横幅），**Codex 等扩展在未信任目录下被禁用无法使用**。桥只会打开本机 DSH 空间的
+目录（用户自选的可信路径），因此默认信任是合理基线；关闭开关则移除该键、恢复 VS Code 默认信任
+行为。开关变化（设置页保存/状态轮询差值）同样触发池内实例收敛重载。
+
 **0.1.21 专注布局（默认只显示 Codex）**：设置页新增「专注布局」开关（默认开）。开启后，**新打开的
 VS Code（workspace 首次打开）默认以「副边栏（右侧 Codex 面板）最大化」进入**——VS Code 原生行为：
 最大化副边栏会自动收起主边栏/面板/编辑器区，整窗只剩右侧面板；同时状态栏隐藏、欢迎页不再自动弹出，
@@ -149,8 +157,8 @@ URL 绑定「当前会话空间」（`?folder=`），**跨 workspace 切换会�
   都直接秒切到已存活实例、零重载；池满时弹窗选择要踢出的实例。
 - **设置页**：侧栏齿轮 → 「VS Code Server」——serverMode（pinned/custom）、customBinaryPath、端口、
   打开目录跟随开关、工作区路径（跟随关闭时的默认打开目录）、实例池上限、专注布局开关（默认开：
-  新打开的 VS Code 默认只显示右侧 Codex，其余收起、按需打开）、安装/数据/下载目录、
-  autoStart、附加参数；配置持久化于 `<工作区>/.dsh/vscode-bridge/config.json`。
+  新打开的 VS Code 默认只显示右侧 Codex，其余收起、按需打开）、信任打开的目录开关（默认开：禁用
+  Restricted Mode，保证 Codex 等扩展可用）、安装/数据/下载目录、autoStart、附加参数；配置持久化于 `<工作区>/.dsh/vscode-bridge/config.json`。
 
 ## 依赖
 

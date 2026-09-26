@@ -1,0 +1,110 @@
+{
+ "when": "2026-09-26T03:25:28.244Z",
+ "results": [
+  {
+   "name": "V1 主边栏收起",
+   "ok": true,
+   "detail": "sidebar={\"w\":0,\"h\":0}"
+  },
+  {
+   "name": "V1 编辑器区收起",
+   "ok": true,
+   "detail": "editor={\"w\":0,\"h\":0}"
+  },
+  {
+   "name": "V1 面板收起",
+   "ok": true,
+   "detail": "panel={\"w\":0,\"h\":0}"
+  },
+  {
+   "name": "V1 状态栏隐藏（boot 级键）",
+   "ok": true,
+   "detail": "statusbar={\"w\":0,\"h\":0}"
+  },
+  {
+   "name": "V1 活动栏保留（决策点）",
+   "ok": true,
+   "detail": "activitybar={\"w\":48,\"h\":794}"
+  },
+  {
+   "name": "V1 副边栏(Codex)最大化占满",
+   "ok": true,
+   "detail": "aux={\"w\":599,\"h\":794} classes: nosidebar=true nomaineditorarea=true nopanel=true nostatusbar=true noauxiliarybar=false noactivitybar=false"
+  },
+  {
+   "name": "V1 无 Restricted Mode 信任横幅",
+   "ok": true,
+   "detail": "bannerText=absent"
+  },
+  {
+   "name": "V1 四键落盘 settings.json（含 trust）",
+   "ok": true,
+   "detail": "workbench.secondarySideBar.defaultVisibility=\"maximized\" workbench.statusBar.visible=false workbench.startupEditor=\"none\" trust=false"
+  },
+  {
+   "name": "V2 显式打开主边栏 → 解除最大化（编辑器区还原）",
+   "ok": true,
+   "detail": "sidebar={\"w\":170,\"h\":794} editor={\"w\":259,\"h\":794}"
+  },
+  {
+   "name": "V2 重载后保留用户布局（workspace 持久化，不被强拉）",
+   "ok": true,
+   "detail": "sidebar={\"w\":170,\"h\":794} editor={\"w\":259,\"h\":794}"
+  },
+  {
+   "name": "V2 重载后状态栏仍隐藏（settings 级键每次启动生效）",
+   "ok": true,
+   "detail": "nostatusbar=true"
+  },
+  {
+   "name": "V3 全新空间 beta 自动进专注",
+   "ok": true,
+   "detail": "aux={\"w\":599,\"h\":794} nosidebar=true nomaineditorarea=true"
+  },
+  {
+   "name": "V4 关闭专注：alpha 状态栏恢复",
+   "ok": true,
+   "detail": "statusbar={\"w\":1440,\"h\":22}"
+  },
+  {
+   "name": "V4 关闭专注：alpha 保留用户布局",
+   "ok": true,
+   "detail": "sidebar={\"w\":170,\"h\":843}"
+  },
+  {
+   "name": "V4 关闭专注：beta 保持专注（wasLastMaximized 已持久化）",
+   "ok": true,
+   "detail": "aux={\"w\":599,\"h\":772}"
+  },
+  {
+   "name": "V4 开关经 api 生效：focus 三键移除、trust 键保留",
+   "ok": true,
+   "detail": "workbench.secondarySideBar.defaultVisibility=undefined workbench.statusBar.visible=undefined workbench.startupEditor=undefined"
+  },
+  {
+   "name": "V4 关闭专注：gamma 全新空间不自动最大化",
+   "ok": true,
+   "detail": "nosidebar=false nomaineditorarea=false"
+  },
+  {
+   "name": "V4 关闭专注：gamma 状态栏可见",
+   "ok": true,
+   "detail": "nostatusbar=false"
+  },
+  {
+   "name": "V5 重新开启：delta 全新空间再次自动进专注",
+   "ok": true,
+   "detail": "aux={\"w\":599,\"h\":794} classes: nosidebar=true nomaineditorarea=true nostatusbar=true"
+  },
+  {
+   "name": "V5 开关经 api 生效且四键重新落盘",
+   "ok": true,
+   "detail": "workbench.secondarySideBar.defaultVisibility=\"maximized\" workbench.statusBar.visible=false workbench.startupEditor=\"none\""
+  },
+  {
+   "name": "V6 设置页「专注布局」勾选框存在且勾选=true",
+   "ok": true,
+   "detail": "checked=true"
+  }
+ ]
+}
