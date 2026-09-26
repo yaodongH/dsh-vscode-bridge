@@ -1,4 +1,4 @@
-// dsh-vscode-bridge 0.1.22 e2e：专注布局（新开的 VS Code 默认只显示 Codex）+ 信任目录（禁用 Restricted Mode）
+// dsh-vscode-bridge 0.1.23 e2e：专注布局 + 信任目录 + 副边栏默认定位到 Codex
 // 隔离调试实例 3190（DSH_HOME=/tmp/dsh-dev-home，DSH_VSCODE_BRIDGE_WORKSPACE=/tmp/dsh-dev-ws，
 // code-server 落 18654）。按工作空间规则 1，全程未触碰 3080 主实例。
 // 用法：DSH_URL='http://127.0.0.1:3190/?token=<token>' node demo/e2e-focus-layout.mjs
@@ -158,8 +158,21 @@ const shot = async (name) => {
 };
 const settingsJson = () => { try { return JSON.parse(fs.readFileSync(SETTINGS, 'utf8')); } catch (e) { return {}; } };
 const settingsKeys = (sj) => ['workbench.secondarySideBar.defaultVisibility', 'workbench.statusBar.visible', 'workbench.startupEditor'].map((k) => k + '=' + JSON.stringify(sj[k])).join(' ');
-// 专注开关：统一走 API（与多页签他端改配置完全等价：客户端经 1.5s 轮询差值发现 → 推送 → 收敛重载）。
+// 副边栏活动容器探针：容器页签（role=tab，激活态含 checked 类）+ 标题 label
+const auxContainerOf = async (f) => await f.evaluate(() => {
+  const tabs = Array.from(document.querySelectorAll('.part.auxiliarybar li.action-item[role="tab"]'));
+  const active = tabs.find((t) => String(t.getAttribute('class') || '').split(/\s+/).includes('checked')) || null;
+  const label = active ? active.querySelector('a.action-label') : null;
+  const h2 = document.querySelector('.part.auxiliarybar .title-label h2');
+  return {
+    tabs: tabs.map((t) => ((t.querySelector('a.action-label') || {}).textContent || '').trim()).join('|'),
+    active: label ? ((label.getAttribute('aria-label') || '') + ' ' + (label.textContent || '')).trim() : '',
+    title: h2 ? (h2.textContent || '').trim() : '',
+  };
+});
+const codexActive = (c) => /codex/i.test(c.active) || /codex/i.test(c.title);
 // 设置页勾选框的真实性单独在 V6 做 UI 检查（只读 + 截图，不做写入，避免误触「重启 code-server」）。
+// 专注开关：统一走 API（与多页签他端改配置完全等价：客户端经 1.5s 轮询差值发现 → 推送 → 收敛重载）。
 const toggleFocus = async (on) => {
   await page.evaluate(async (v) => {
     await fetch('/dsh-vscode/config', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ patch: { focusLayout: v } }) });
@@ -204,13 +217,9 @@ check('V1 无 Restricted Mode 信任横幅', !frameText1.includes('Restricted Mo
 check('V1 四键落盘 settings.json（含 trust）', (() => { const sj = settingsJson(); return sj['workbench.secondarySideBar.defaultVisibility'] === 'maximized' && sj['workbench.statusBar.visible'] === false && sj['workbench.startupEditor'] === 'none' && sj['security.workspace.trust.enabled'] === false; })(), settingsKeys(settingsJson()) + ' trust=' + JSON.stringify(settingsJson()['security.workspace.trust.enabled']));
 await shot('01-focus-alpha');
 
-// 尽力把副边栏切到 CODEX 容器（首开默认容器可能是 CHAT，点一次即持久化）
-try {
-  const codexTab = page.frames().find((x) => /:18654/.test(x.url()) && decodeURIComponent(x.url()).includes('spaces/alpha'))
-    .locator('.part.auxiliarybar .composite-bar li.action-item, .part.auxiliarybar .monaco-action-bar li.action-item')
-    .filter({ hasText: /CODEX/i }).first();
-  if ((await codexTab.count()) && (await codexTab.isVisible().catch(() => false))) { await codexTab.click(); await page.waitForTimeout(1500); }
-} catch (e) { console.log('  [codex tab] ' + String(e).slice(0, 100)); }
+// 副边栏默认容器应定位到 Codex（0.1.23：扩展已装 + 新 workspace 首启自动定位）
+const c1 = await auxContainerOf(fa);
+check('V1 副边栏默认定位到 Codex', codexActive(c1), JSON.stringify(c1));
 await shot('02-focus-alpha-codex');
 
 // ─── V2：用户显式打开主边栏（活动栏图标 / Ctrl+B）→ 解除最大化；重载后保留用户布局 ───
@@ -267,6 +276,8 @@ await page.waitForTimeout(3000);
 const l4c = await layoutOf(fg);
 check('V4 关闭专注：gamma 全新空间不自动最大化', !l4c.nomaineditorarea && !l4c.nosidebar, 'nosidebar=' + l4c.nosidebar + ' nomaineditorarea=' + l4c.nomaineditorarea);
 check('V4 关闭专注：gamma 状态栏可见', !l4c.nostatusbar, 'nostatusbar=' + l4c.nostatusbar);
+const c4 = await auxContainerOf(fg);
+check('V4 关闭专注：gamma 副边栏同样定位到 Codex（首启一次）', codexActive(c4), JSON.stringify(c4));
 await shot('07-focus-off-gamma');
 
 // ─── V5：重新开启专注 → delta 全新空间再次进专注 ───
@@ -279,6 +290,8 @@ const fd = await waitVsFrame('spaces/delta');
 await page.waitForTimeout(3000);
 const l5 = await layoutOf(fd);
 check('V5 重新开启：delta 全新空间再次自动进专注', focusedShape(l5), 'aux=' + JSON.stringify(l5.aux) + ' classes: nosidebar=' + l5.nosidebar + ' nomaineditorarea=' + l5.nomaineditorarea + ' nostatusbar=' + l5.nostatusbar);
+const c5 = await auxContainerOf(fd);
+check('V5 delta 副边栏定位到 Codex', codexActive(c5), JSON.stringify(c5));
 check('V5 开关经 ' + via5 + ' 生效且四键重新落盘', (() => { const sj = settingsJson(); return sj['workbench.secondarySideBar.defaultVisibility'] === 'maximized' && sj['workbench.statusBar.visible'] === false && sj['security.workspace.trust.enabled'] === false; })(), settingsKeys(settingsJson()));
 await shot('08-focus-on-delta');
 
@@ -310,7 +323,7 @@ try {
   console.log('  [V6] skipped: ' + String(e).slice(0, 120));
 }
 
-fs.writeFileSync(`${OUT}/e2e-results-0.1.22.json`, JSON.stringify({ when: new Date().toISOString(), results }, null, 1));
+fs.writeFileSync(`${OUT}/e2e-results-0.1.23.json`, JSON.stringify({ when: new Date().toISOString(), results }, null, 1));
 const pass = results.filter((r) => r.ok).length;
 console.log(`RESULT: ${pass}/${results.length} passed`);
 await browser.close();

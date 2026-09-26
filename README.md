@@ -105,6 +105,15 @@ user settings，之后不再跟随文件变化，而旧实现只是"挂载时随
 「忽略 `Default ` 前缀与大小写」比较（workbench 会把值规范化成当前构建的标签，如
 `Default Dark Modern` → `Dark Modern`），不再重复改写。同属 client 侧改动，刷新浏览器生效。
 
+**0.1.23 副边栏默认定位到 Codex**：新 workspace 首启时副边栏的默认容器是内置 Chat（GitHub agent
+视图），Codex 装了也要手动点一次标签。本版本起，宿主在每次启动 code-server 前扫描插件托管的
+extensions 目录，找贡献了 `secondarySidebar` 容器的扩展（id/标题含 `codex` 优先），在 pinned 安装树的
+**内置扩展目录**生成微型扩展 `dsh-layout-init`（幂等覆盖，重启 code-server 即更新）：其激活
+（`onStartupFinished`）后检查容器命令存在（Codex 已安装）且**该 workspace 尚未定位过**
+（`workspaceState` 记账，每 workspace 仅一次），才执行一次 `workbench.view.extension.<容器id>`。
+之后布局交给用户与 VS Code 持久化，绝不重复执行/强拉。Codex 未安装时扩展静默空转；
+custom 二进制模式不改其安装树、暂不注入。注意：Codex 安装/卸载后需重启 code-server 使生成内容更新。
+
 **0.1.22 信任打开的目录（禁用 Restricted Mode）**：设置页新增「信任打开的目录」开关（默认开）。
 开启时随 `/dsh-vscode/layout` 向 code-server 的 user settings.json 恒写
 `security.workspace.trust.enabled: false`（幂等、原子写，与专注布局三键同一落盘通道、每次 iframe
