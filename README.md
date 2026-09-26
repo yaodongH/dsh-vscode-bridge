@@ -105,6 +105,21 @@ user settings，之后不再跟随文件变化，而旧实现只是"挂载时随
 「忽略 `Default ` 前缀与大小写」比较（workbench 会把值规范化成当前构建的标签，如
 `Default Dark Modern` → `Dark Modern`），不再重复改写。同属 client 侧改动，刷新浏览器生效。
 
+**0.1.21 专注布局（默认只显示 Codex）**：设置页新增「专注布局」开关（默认开）。开启后，**新打开的
+VS Code（workspace 首次打开）默认以「副边栏（右侧 Codex 面板）最大化」进入**——VS Code 原生行为：
+最大化副边栏会自动收起主边栏/面板/编辑器区，整窗只剩右侧面板；同时状态栏隐藏、欢迎页不再自动弹出，
+**活动栏保留**（左缘图标条 + 副边栏顶部 CHAT/CODEX 切换条，即"按需打开"的主入口）。实现走纯配置面：
+宿主经 `/dsh-vscode/layout` 向 code-server 的 user settings.json 写/删三键
+（`workbench.secondarySideBar.defaultVisibility: "maximized"`、`workbench.statusBar.visible: false`、
+`workbench.startupEditor: "none"`），与主题同款约束（workbench 只在启动时读一次 settings）——
+每次 iframe 启动前先落盘再启动；开关变化（设置页保存/状态轮询差值）对池内全部已加载实例收敛重载。
+两个刻意的语义决策：① 不用 `workbench.secondarySideBar.forceMaximized`（它会在编辑器全关时把布局
+拉回最大化，会"强拉"用户）；② `defaultVisibility` 只对 workspace 首次打开生效，此后布局由 VS Code
+按 workspace 持久化接管——**已打开的 VS Code 里解除最大化/打开边栏后保持用户布局，不被强拉**；该
+folder 后续每次打开也都保持。边界：在本版本前已打开过的 folder 不会自动进专注（首次打开语义），
+点一次副边栏标题栏的「最大化副边栏」按钮即持久化生效；新 folder 首开时副边栏默认容器可能不是
+CODEX，点一次 CODEX 标签即持久化。
+
 **0.1.20 弹窗会话标题**：满池腾位弹窗的每个候选实例增加「会话：…」一行（该空间的会话展示名，
 超过 2 个折叠为「等 N 个会话」），触发弹窗的描述行也带上当前会话标题——用户按会话判断踢谁，
 不必反查目录归属。
@@ -133,7 +148,8 @@ URL 绑定「当前会话空间」（`?folder=`），**跨 workspace 切换会�
   **按 workspace 缓存实例**（实例池，默认保留 2 个）：同空间会话互切、或切回之前开过的空间，
   都直接秒切到已存活实例、零重载；池满时弹窗选择要踢出的实例。
 - **设置页**：侧栏齿轮 → 「VS Code Server」——serverMode（pinned/custom）、customBinaryPath、端口、
-  打开目录跟随开关、工作区路径（跟随关闭时的默认打开目录）、实例池上限、安装/数据/下载目录、
+  打开目录跟随开关、工作区路径（跟随关闭时的默认打开目录）、实例池上限、专注布局开关（默认开：
+  新打开的 VS Code 默认只显示右侧 Codex，其余收起、按需打开）、安装/数据/下载目录、
   autoStart、附加参数；配置持久化于 `<工作区>/.dsh/vscode-bridge/config.json`。
 
 ## 依赖
